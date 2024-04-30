@@ -7,10 +7,12 @@ import at.hannibal2.skyhanni.config.features.inventory.StarDisplayConfig.ToolTip
 import at.hannibal2.skyhanni.data.jsonobjects.repo.ItemsJson
 import at.hannibal2.skyhanni.events.RenderItemTipEvent
 import at.hannibal2.skyhanni.events.RepositoryReloadEvent
+import at.hannibal2.skyhanni.features.inventory.ItemDisplayOverlayFeatures.isSelected
 import at.hannibal2.skyhanni.utils.ItemUtils.name
 import at.hannibal2.skyhanni.utils.LorenzUtils
 import at.hannibal2.skyhanni.utils.SkyBlockItemModifierUtils.getDungeonStarCount
 import at.hannibal2.skyhanni.utils.SkyBlockItemModifierUtils.getUpgradeLevel
+import at.hannibal2.skyhanni.utils.repopatterns.RepoPattern
 import net.minecraft.item.ItemStack
 import net.minecraftforge.event.entity.player.ItemTooltipEvent
 import net.minecraftforge.fml.common.eventhandler.EventPriority
@@ -22,6 +24,11 @@ class ItemStars {
 
     private val stackTipConfig get() = config.stackTipStarDisplay
     private val toolTipConfig get() = config.toolTipStarDisplay
+
+    private val starPattern by RepoPattern.pattern(
+        "inventory.itemstars.stars",
+        "(.*)§.✪(.*)"
+    )
 
     private var armorNames = listOf<String>()
     private var tiers = mapOf<String, Int>()
