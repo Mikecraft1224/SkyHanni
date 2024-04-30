@@ -1,24 +1,27 @@
 package at.hannibal2.skyhanni.features.inventory
 
 import at.hannibal2.skyhanni.SkyHanniMod
-import at.hannibal2.skyhanni.config.features.inventory.InventoryConfig
-import at.hannibal2.skyhanni.config.features.inventory.InventoryConfig.ItemNumberEntry.CRIMSON_ARMOR
+import at.hannibal2.skyhanni.config.features.inventory.StarDisplayConfig
+import at.hannibal2.skyhanni.config.features.inventory.StarDisplayConfig.StackTipStarDisplay
+import at.hannibal2.skyhanni.config.features.inventory.StarDisplayConfig.ToolTipStarDisplay
 import at.hannibal2.skyhanni.data.jsonobjects.repo.ItemsJson
 import at.hannibal2.skyhanni.events.RenderItemTipEvent
 import at.hannibal2.skyhanni.events.RepositoryReloadEvent
-import at.hannibal2.skyhanni.features.inventory.ItemDisplayOverlayFeatures.isSelected
 import at.hannibal2.skyhanni.utils.ItemUtils.name
 import at.hannibal2.skyhanni.utils.LorenzUtils
 import at.hannibal2.skyhanni.utils.SkyBlockItemModifierUtils.getDungeonStarCount
 import at.hannibal2.skyhanni.utils.SkyBlockItemModifierUtils.getUpgradeLevel
+import net.minecraft.item.ItemStack
 import net.minecraftforge.event.entity.player.ItemTooltipEvent
 import net.minecraftforge.fml.common.eventhandler.EventPriority
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 import kotlin.math.max
 
 class ItemStars {
+    private val config get() = SkyHanniMod.feature.inventory.starDisplay
 
-    private val config get() = SkyHanniMod.feature.inventory
+    private val stackTipConfig get() = config.stackTipStarDisplay
+    private val toolTipConfig get() = config.toolTipStarDisplay
 
     private var armorNames = listOf<String>()
     private var tiers = mapOf<String, Int>()
@@ -26,12 +29,15 @@ class ItemStars {
 
     @SubscribeEvent(priority = EventPriority.LOW)
     fun onTooltip(event: ItemTooltipEvent) {
-        if (!isEnabled()) return
+        if (!toolTipIsEnabled()) return
+
         val stack = event.itemStack ?: return
         if (stack.stackSize != 1) return
         val name = stack.name ?: return
 
-        var stars: Int
+        var stars = -1
+        var color = "§c"
+        val useColor = toolTipConfig.starColorType != StarDisplayConfig.StarDisplayColorType.OFF
 
         if (usesMasterStars()) {
             stars = stack.getDungeonStarCount() ?: -1
@@ -39,9 +45,22 @@ class ItemStars {
             stars = stack.getUpgradeLevel() ?: 0
 
             val isKuudraArmor = armorNames.any { name.contains(it) } && armorParts.any { name.contains(it) }
-            if (isKuudraArmor && config.starType == InventoryConfig.StarType.ALLSTAR)
-                stars += tiers.entries.find { name.contains(it.key) }?.value ?: 0
+
+            if (isKuudraArmor) {
+                if (useColor)
+                    color = if (toolTipConfig.starColorType == StarDisplayConfig.StarDisplayColorType.TIER) {
+                        tierToColor(tiers.entries.find { name.contains(it.key) }?.key ?: "Basic")
+                    } else starCountToColor(stack, stars)
+
+                if (toolTipConfig.starType == ToolTipStarDisplay.StarType.ALLSTAR)
+                    stars += tiers.entries.find { name.contains(it.key) }?.value ?: 0
+            } else if (useColor) {
+                color = starCountToColor(stack, stars)
+            }
         }
+
+        if (toolTipConfig.starColorType == StarDisplayConfig.StarDisplayColorType.CUSTOM)
+            color = config.customStarColor.getChatColor()
 
         if (stars > 0) {
             val displayName = name.replace("§.[✪➊➋➌➍➎]".toRegex(), "").trim()
@@ -51,7 +70,7 @@ class ItemStars {
                 val normalStars = 5 - masterStars
                 event.toolTip[0] = "$displayName ${"§c✪".repeat(masterStars) + "§6✪".repeat(normalStars)}"
             } else {
-                event.toolTip[0] = "$displayName §c$stars✪"
+                event.toolTip[0] = "$displayName $color$stars✪"
             }
         }
     }
@@ -63,23 +82,67 @@ class ItemStars {
         tiers = data.crimson_tiers
     }
 
-    @SubscribeEvent
+    @SubscribeEvent()
     fun onRenderItemTip(event: RenderItemTipEvent) {
-        if (!CRIMSON_ARMOR.isSelected()) return
+        if (!stackTipIsEnabled()) return
+
         val stack = event.stack
+        if (stack.stackSize != 1) return
         val name = stack.name ?: return
-
-        var number = stack.getUpgradeLevel() ?: 0
         val isKuudraArmor = armorNames.any { name.contains(it) } && armorParts.any { name.contains(it) }
-        if (isKuudraArmor)
-            number += (tiers.entries.find { name.contains(it.key) }?.value ?: 0)
+        if (stackTipConfig.stackTipNumberKuudraOnly && !isKuudraArmor) return
 
-        if (number > 0) {
-            event.stackTip = number.toString()
+        var stars = -1
+        var color = "§f"
+        val useColor = stackTipConfig.starColorType != StarDisplayConfig.StarDisplayColorType.OFF
+
+        if (isKuudraArmor) {
+            stars = stack.getUpgradeLevel() ?: 0
+
+            if (useColor)
+                color = if (stackTipConfig.starColorType == StarDisplayConfig.StarDisplayColorType.TIER) {
+                    tierToColor(tiers.entries.find { name.contains(it.key) }?.key ?: "Basic")
+                } else starCountToColor(stack, stars)
+
+            if (stackTipConfig.stackTipNumber == StackTipStarDisplay.StackTipNumber.ALLSTAR)
+                stars += tiers.entries.find { name.contains(it.key) }?.value ?: 0
+        } else if (!stackTipConfig.stackTipNumberKuudraOnly) {
+            stars = stack.getUpgradeLevel() ?: -1
+
+            if (useColor)
+                color = starCountToColor(stack, stars)
+        }
+
+        if (stackTipConfig.starColorType == StarDisplayConfig.StarDisplayColorType.CUSTOM)
+            color = config.customStarColor.getChatColor()
+
+        if (stars >= 0) {
+            event.stackTip = "$color$stars"
         }
     }
 
-    private fun isEnabled() = LorenzUtils.inSkyBlock && config.starType != InventoryConfig.StarType.OFF
+    // TODO add to repo
+    private fun tierToColor(tier: String) = when (tier) {
+        "Basic" -> "§a"
+        "Hot" -> "§2"
+        "Burning" -> "§e"
+        "Fiery" -> "§6"
+        "Infernal" -> "§c"
+        else -> "§f"
+    }
 
-    private fun usesMasterStars() = config.starType == InventoryConfig.StarType.MASTERSTAR
+    private fun starCountToColor(stack: ItemStack, stars: Int) = when {
+        stars <= 5 -> "§6"                              // gold
+        stack.getDungeonStarCount() != null -> "§c"     // red
+        stars <= 10 -> "§d"                             // pink
+        else -> "§b"                                    // aqua
+    }
+
+    private fun toolTipIsEnabled() =
+        LorenzUtils.inSkyBlock && toolTipConfig.starType != ToolTipStarDisplay.StarType.OFF
+    private fun stackTipIsEnabled() =
+        LorenzUtils.inSkyBlock && stackTipConfig.stackTipNumber != StackTipStarDisplay.StackTipNumber.OFF
+
+    private fun usesMasterStars() =
+        toolTipConfig.starType == ToolTipStarDisplay.StarType.MASTERSTAR
 }

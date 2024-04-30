@@ -8,7 +8,6 @@ import io.github.moulberry.moulconfig.annotations.Accordion;
 import io.github.moulberry.moulconfig.annotations.Category;
 import io.github.moulberry.moulconfig.annotations.ConfigEditorBoolean;
 import io.github.moulberry.moulconfig.annotations.ConfigEditorDraggableList;
-import io.github.moulberry.moulconfig.annotations.ConfigEditorDropdown;
 import io.github.moulberry.moulconfig.annotations.ConfigOption;
 
 import java.util.ArrayList;
@@ -54,6 +53,11 @@ public class InventoryConfig {
     public ChestValueConfig chestValueConfig = new ChestValueConfig();
 
     @Expose
+    @ConfigOption(name = "Star Display", desc = "")
+    @Accordion
+    public StarDisplayConfig starDisplay = new StarDisplayConfig();
+
+    @Expose
     @Category(name = "Helpers", desc = "Settings for Helpers")
     public HelperConfig helper = new HelperConfig();
 
@@ -70,6 +74,7 @@ public class InventoryConfig {
         VACUUM_GARDEN
     ));
 
+    // TODO merge ItemNumberEntry.CRIMSON_ARMOR to StarDisplayConfig.stackTipStarDisplay.stackTipNumber.ALLSTAR
     public enum ItemNumberEntry implements HasLegacyId {
         MASTER_STAR_TIER("§bMaster Star Tier", 0),
         MASTER_SKULL_TIER("§bMaster Skull Tier", 1),
@@ -77,7 +82,7 @@ public class InventoryConfig {
         NEW_YEAR_CAKE("§bNew Year Cake", 3),
         PET_LEVEL("§bPet Level", 4),
         MINION_TIER("§bMinion Tier", 5),
-        CRIMSON_ARMOR("§bCrimson Armor", 6),
+        CRIMSON_ARMOR("§7(Removed)", 6),
         REMOVED("§7(Removed)", 7),
         KUUDRA_KEY("§bKuudra Key", 8),
         SKILL_LEVEL("§bSkill Level", 9),
@@ -142,41 +147,13 @@ public class InventoryConfig {
     @FeatureToggle
     public boolean anvilCombineHelper = false;
 
-    // TODO merge to new feature
+    // TODO merge itemStars to StarDisplayConfig.tooltipStarDisplay.starType.ALLSTAR
     @Expose
     @ConfigOption(name = "Item Stars",
         desc = "Show a compact star count in the item name for all items.")
     @ConfigEditorBoolean
     @FeatureToggle
     public boolean itemStars = false;
-
-    @Expose
-    @ConfigOption(name = "Starred Items",
-        desc = "Modifies how stars are displayed on items.")
-    @ConfigEditorDropdown
-    public StarType starType = StarType.ALLSTAR;
-
-    public enum StarType {
-        OFF("Off"),
-        ALLSTAR("All stars"),
-        CURRENTSTAR("Current stars"),
-        MASTERSTAR("Old Master Stars"),
-
-        ;
-        private final String str;
-
-        StarType(String s) {
-            this.str = s;
-        }
-
-        @Override
-        public String toString() {
-            return str;
-        }
-
-    }
-
-    // TODO option for stack tip number
 
     @Expose
     @ConfigOption(name = "Missing Tasks",
